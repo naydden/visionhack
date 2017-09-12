@@ -40,14 +40,19 @@ for f in os.listdir(path):
             else:
                 break
         gradient = np.gradient(brghtns)
-        diff = np.amax(gradient) - np.amin(gradient)
-        frame_diff = np.abs(np.argmax(gradient) - np.argmin(gradient))
+        frame_max = np.argmax(gradient)
+        frame_min = np.argmin(gradient)
+        if frame_min < len(gradient) - 2:
+            diff1 = gradient[frame_min + 2] - gradient[frame_min]
+        else:
+            diff1 = 0
+        diff2 = gradient[frame_max] - gradient[frame_max - 2]
         # diff = np.amax(brghtns) - np.amin(brghtns)
-        if diff > 15 and frame_diff < 4:
-            print f + ' ' + '000010' + ' ' + str(diff) + ' ' + str(frame_diff)
+        if diff1 > 16 and diff2 > 16:
+            print f + ' ' + '000010' + ' ' + str(diff1) + ' ' + str(diff2)
             fid.write(f + ' ' + '000010' + '\n')
         else:
-            print f + ' ' + '000000' + ' ' + str(diff) + ' ' + str(frame_diff)
+            print f + ' ' + '000000' + ' ' + str(diff1) + ' ' + str(diff2)
             fid.write(f + ' ' + '000000' + '\n')
         # plt.plot(brghtns)
         # plt.plot(gradient)
