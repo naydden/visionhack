@@ -21,6 +21,53 @@ def select_blue(image):
 def convert_hsv(image):
 	return cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
+img1 = cv2.imread('./test_images/pass_es.png',0) # queryImage
+sift = cv2.xfeatures2d.SIFT_create()
+kp1, des1 = sift.detectAndCompute(img1,None)
+
+def ORB(img2):
+	rst, dest2 = cv2.threshold(img2, 130, 255, cv2.THRESH_BINARY)
+
+	# find the keypoints and descriptors with SIFT
+	kp2, des2 = orb.detectAndCompute(dest2,None)
+
+	# create BFMatcher object
+	bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+
+	# Match descriptors.
+	matches = bf.match(des1,des2)
+
+	# Sort them in the order of their distance.
+	matches = sorted(matches, key = lambda x:x.distance)
+
+	print matches[0].distance
+	# Draw first 10 matches.
+	# img3 = cv2.drawMatches(img1,kp1,img2,kp2,matches[:10],None,flags=2)
+	# plt.imshow(img3),plt.show()
+
+def SIFT(img2):
+	sift = cv2.xfeatures2d.SIFT_create()
+
+	# find the keypoints and descriptors with SIFT
+
+	kp2, des2 = sift.detectAndCompute(img2,None)
+
+	FLANN_INDEX_KDTREE = 0
+	index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
+	search_params = dict(checks = 50)
+
+	flann = cv2.FlannBasedMatcher(index_params, search_params)
+ 
+	matches = flann.knnMatch(des1,des2,k=2)
+	# store all the good matches as per Lowe's ratio test.
+	good = []
+	for m,n in matches:
+		if m.distance < 0.55*n.distance:
+			good.append([m,n])
+	# Sort them in the order of their distance.
+	good = sorted(good, key = lambda x: x[0].distance)
+	print good
+
 def extract_triangle(image):
 	image = imutils.resize(image, height=500)
 	gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -94,6 +141,11 @@ def defineTrafficSign(image):
 			gray_mask = cv2.cvtColor(blue_mask, cv2.COLOR_BGR2GRAY)
 			nbr = cv2.countNonZero(gray_mask)
 			if (nbr > 200):
+				try:
+					SIFT(output)
+				except:
+					pass
+
 				cv2.imshow('mask',output)
 		# extract_triangle(output)
 
