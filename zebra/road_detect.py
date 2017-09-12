@@ -93,7 +93,7 @@ def defineTrafficSign(image):
 			blue_mask = select_blue(output)
 			gray_mask = cv2.cvtColor(blue_mask, cv2.COLOR_BGR2GRAY)
 			nbr = cv2.countNonZero(gray_mask)
-			if (nbr > 2q00):
+			if (nbr > 200):
 				cv2.imshow('mask',output)
 		# extract_triangle(output)
 
