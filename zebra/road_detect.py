@@ -21,9 +21,11 @@ def select_blue(image):
 def convert_hsv(image):
 	return cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
-img1 = cv2.imread('./test_images/pass_es.png',0) # queryImage
+img1_es = cv2.imread('./test_images/pass_es.png',0) # queryImage
+img1_dr = cv2.imread('./test_images/pass_dr.png',0) # queryImage
 sift = cv2.xfeatures2d.SIFT_create()
-kp1, des1 = sift.detectAndCompute(img1,None)
+kp1, des_es = sift.detectAndCompute(img1_es,None)
+kp1, des_dr = sift.detectAndCompute(img1_dr,None)
 
 def ORB(img2):
 	rst, dest2 = cv2.threshold(img2, 130, 255, cv2.THRESH_BINARY)
@@ -51,22 +53,22 @@ def SIFT(img2):
 	# find the keypoints and descriptors with SIFT
 
 	kp2, des2 = sift.detectAndCompute(img2,None)
-
 	FLANN_INDEX_KDTREE = 0
 	index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
 	search_params = dict(checks = 50)
 
 	flann = cv2.FlannBasedMatcher(index_params, search_params)
- 
-	matches = flann.knnMatch(des1,des2,k=2)
+	matches_es = flann.knnMatch(des_es,des2,k=2)
+	# matches_dr = flann.knnMatch(des_dr,des2,k=2)
 	# store all the good matches as per Lowe's ratio test.
 	good = []
-	for m,n in matches:
-		if m.distance < 0.55*n.distance:
+	for m,n in matches_es:
+		if m.distance < 0.5*n.distance:
 			good.append([m,n])
 	# Sort them in the order of their distance.
 	good = sorted(good, key = lambda x: x[0].distance)
 	print good
+	return len(good)
 
 def extract_triangle(image):
 	image = imutils.resize(image, height=500)
@@ -97,7 +99,7 @@ def extract_triangle(image):
 					break
 
 	cv2.imshow('mask',displayCnt)
-
+found = False
 def defineTrafficSign(image):
 
 		# pre-process the image by resizing it, converting it to
@@ -142,11 +144,13 @@ def defineTrafficSign(image):
 			nbr = cv2.countNonZero(gray_mask)
 			if (nbr > 200):
 				try:
-					SIFT(output)
+					if(SIFT(output) > 1):
+						print "UEs"
+						return True
 				except:
 					pass
-
 				cv2.imshow('mask',output)
+		return False
 		# extract_triangle(output)
 
 		# threshold the warped image, then apply a series of morphological
@@ -194,12 +198,14 @@ def find(video, txt):
 	cv2.resizeWindow('mask', 600,600)
 	cv2.moveWindow("mask", 620,0);
 	cap = cv2.VideoCapture(video)
-	while(cap.isOpened()):
+	found = False
+	while(cap.isOpened() and not found):
 		(grabbed, frame) = cap.read()
 		if grabbed == False:
 			break
 		cv2.imshow('frame',frame)
-		defineTrafficSign(frame)
+		found = defineTrafficSign(frame)
+		print found
 		key = cv2.waitKey(1) & 0xFF
 		if key == ord(u'\u0020'):
 			cv2.waitKey(-1)
