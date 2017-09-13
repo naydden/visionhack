@@ -72,6 +72,49 @@ def hough_lines(image):
 	Returns hough lines (not the image with lines)
 	"""
 	return cv2.HoughLinesP(image, rho=1, theta=np.pi/2, threshold=120, minLineLength=2, maxLineGap=100)
+# model images
+zebra = cv2.imread('/home/bobz/repos/OpenCV-programs/visionhack/zebra/test_images/Zebras/48.png',0)
+zebra_by = cv2.imread('./test_images/Zebras/47.png',0)
+zebra_corb = cv2.imread('./test_images/Zebras/74.png',0)
+
+sift = cv2.xfeatures2d.SIFT_create()
+kp1, zbr = sift.detectAndCompute(zebra,None)
+kp2, zbr_by = sift.detectAndCompute(zebra_by,None)
+kp3, zbr_corb = sift.detectAndCompute(zebra_corb,None)
+
+def SIFT(img2):
+	sift = cv2.xfeatures2d.SIFT_create()
+
+	# find the keypoints and descriptors with SIFT
+	kp2, des2 = sift.detectAndCompute(img2,None)
+	FLANN_INDEX_KDTREE = 0
+	index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
+	search_params = dict(checks = 50)
+
+	flann = cv2.FlannBasedMatcher(index_params, search_params)
+	matches = flann.knnMatch(zbr,des2,k=2)
+	matches_by = flann.knnMatch(zbr_by,des2,k=2)
+	matches_corb = flann.knnMatch(zbr_corb,des2,k=2)
+	# store all the good matches as per Lowe's ratio test.
+	good = []
+	for m,n in matches:
+		if m.distance < 0.425*n.distance:
+			good.append([m,n])
+	size = len(good)
+
+	good_by = []
+	for m,n in matches_by:
+		if m.distance < 0.425*n.distance:
+			good_by.append([m,n])
+	size_by = len(good_by)
+
+	good_corb = []
+	for m,n in matches_corb:
+		if m.distance < 0.425*n.distance:
+			good_corb.append([m,n])
+	size_corb = len(good_corb)
+
+	return max(size, size_by, size_corb)
 
 def find_zebra(video_file):
 	cap = cv2.VideoCapture(video_file)
@@ -92,34 +135,13 @@ def find_zebra(video_file):
 		grey = convert_gray_scale(frame)
 		equ = cv2.equalizeHist(grey)
 		blurred = apply_smoothing(equ)
-		canned = detect_edges(blurred)
-		region = select_region(canned)
-		lines = hough_lines(region)
-		y_coords = []
-		y_notchanged = []
-		# if frame_num%2==0:
-		# 	if lines is not None:
-		# 		for line in lines:
-		# 			y_coords.append(line[0][1])
-		# 	lines_prev.appendleft(y_coords)
-		# 	if lines is not None:
-		# 		if lines_prev[len(lines_prev)-1] is not None:
-		# 			i = 0
-		# 			for y_actual in lines_prev[0]:
-		# 				for y_anterior in lines_prev:
-		# 					if (i == 0):
-		# 						i = i + 1
-		# 						break;
-		# 					if (y_actual in y_anterior):
-		# 						y_notchanged.append(y_actual)
-		# 						break
+		# canned = detect_edges(blurred)
+		region = select_region(blurred)
+		# try:
+		# 	print SIFT(region);
+		# except:
+		# 	pass
 
-		# 			for line in lines:
-		# 				if(line[0][1] not in y_notchanged):
-		# 					cv2.line(frame,(line[0][0],line[0][1]),(line[0][2],line[0][3]),(0,0,255),2)
-		if lines is not None:
-			for line in lines:
-				cv2.line(frame,(line[0][0],line[0][1]),(line[0][2],line[0][3]),(0,0,255),2)
 		cv2.imshow('frame',frame)
 		cv2.imshow('mask',region)
 
