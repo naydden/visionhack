@@ -192,7 +192,7 @@ def bool2num(bool):
 	return 1 if bool else 0
 if __name__ == "__main__":
 	path = '/home/bobz/repos/OpenCV-programs/visionhack/AI/Hack/trainset/'
-	file = open('./test/results-valid', 'w')
+	file = open('./test/results-valid-a', 'w')
 	file_list = [f for f in listdir(path) if isfile(join(path, f)) and f.split('.')[-1] == 'avi']
 	print len(file_list)
 	for indx, file_name in enumerate(file_list):
