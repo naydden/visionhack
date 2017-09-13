@@ -6,7 +6,7 @@ import argparse
 from imutils.perspective import four_point_transform
 from imutils import contours
 import imutils
-import glob
+
 import cv2
 import numpy as np
 
@@ -27,14 +27,53 @@ pass_dr = cv2.imread('./test_images/pass_dr_g.png',0)
 pass_lev = cv2.imread('./test_images/level_g.png',0)
 
 sift = cv2.xfeatures2d.SIFT_create()
-kp, des_z = sift.detectAndCompute(np.array([pass_es,pass_dr]),None)
+kp1, des_es = sift.detectAndCompute(pass_es,None)
+kp1, des_dr = sift.detectAndCompute(pass_dr,None)
 kp1, des_lev = sift.detectAndCompute(pass_lev,None)
 
-images = []
-for file in glob.glob("/home/bobz/repos/OpenCV-programs/visionhack/zebra/test_images/bad/*.png"):
-	img = cv2.imread(file,0)
-	images.append(img)
-kps, des_bad = sift.detectAndCompute(np.array(images),None)
+def ORB(img2):
+	rst, dest2 = cv2.threshold(img2, 130, 255, cv2.THRESH_BINARY)
+
+	# find the keypoints and descriptors with SIFT
+	kp2, des2 = orb.detectAndCompute(dest2,None)
+
+	# create BFMatcher object
+	bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+
+	# Match descriptors.
+	matches = bf.match(des1,des2)
+
+	# Sort them in the order of their distance.
+	matches = sorted(matches, key = lambda x:x.distance)
+
+	print matches[0].distance
+	# Draw first 10 matches.
+	# img3 = cv2.drawMatches(img1,kp1,img2,kp2,matches[:10],None,flags=2)
+	# plt.imshow(img3),plt.show()
+def filter_region(image, vertices):
+	"""
+	Create the mask using the vertices and apply it to the input image
+	"""
+	mask = np.zeros_like(image)
+	if len(mask.shape)==2:
+		cv2.fillPoly(mask, vertices, 255)
+	else:
+		cv2.fillPoly(mask, vertices, (255,)*mask.shape[2]) # in case, the input image has a channel dimension
+	return cv2.bitwise_and(image, mask)
+
+def select_region(image):
+	"""
+	It keeps the region surrounded by the `vertices` (i.e. polygon).  Other area is set to 0 (black).
+	"""
+	# first, define the polygon by vertices
+	rows, cols = image.shape[:2]
+	bottom_left  = [cols*0, rows*0.90]
+	top_left     = [cols*0.1, rows*0.65]
+	bottom_right = [cols*1, rows*0.90]
+	top_right    = [cols*0.9, rows*0.65]
+	# the vertices are an array of polygons (i.e array of arrays) and the data type must be integer
+	vertices = np.array([[bottom_left, top_left, top_right, bottom_right]], dtype=np.int32)
+	return filter_region(image, vertices)
 
 def SIFT(img2):
 	sift = cv2.xfeatures2d.SIFT_create()
@@ -46,44 +85,42 @@ def SIFT(img2):
 	search_params = dict(checks = 50)
 
 	flann = cv2.FlannBasedMatcher(index_params, search_params)
-	matches_z = flann.knnMatch(des_z,des2,k=2)
-
+	matches_es = flann.knnMatch(des_es,des2,k=2)
+	matches_dr = flann.knnMatch(des_dr,des2,k=2)
 	matches_lev = flann.knnMatch(des_lev,des2,k=2)
-
-	matches_bad = flann.knnMatch(des_bad,des2,k=2)
-
 	# store all the good matches as per Lowe's ratio test.
-	good_z = []
-	for m,n in matches_z:
-		if m.distance < 0.45*n.distance:
-			good_z.append([m,n])
-	size_z = len(good_z)
+	good_es = []
+	for m,n in matches_es:
+		if m.distance < 0.425*n.distance:
+			good_es.append([m,n])
+	size_es = len(good_es)
+
+	good_dr = []
+	for m,n in matches_dr:
+		if m.distance < 0.425*n.distance:
+			good_dr.append([m,n])
+	size_dr = len(good_dr)
+
 	good_lev = []
 	for m,n in matches_lev:
-		if m.distance < 0.45*n.distance:
+		if m.distance < 0.425*n.distance:
 			good_lev.append([m,n])
 	size_lev = len(good_lev)
 
-	good_bad = []
-	for m,n in matches_bad:
-		if m.distance < 0.45*n.distance:
-			good_bad.append([m,n])
-	size_bad = len(good_bad)
-
-	if(size_z > size_bad):
-		return (size_z,'z') if size_z > size_lev else (size_lev,'l')
-	elif(size_lev > size_bad):
-		return (size_lev, 'l') if size_lev > size_z else (size_z,'z')
-	elif(size_z == size_bad):
-		return (size_z, 'z') if good_z[0].distance < good_bad[0].distance else (0,'b')
-	elif(size_lev == size_bad):
-		return (size_lev, 'l') if good_lev[0].distance < good_bad[0].distance else (0, 'b')
+	if(size_es > size_lev):
+		return (size_es,'z') if size_es > size_dr else (size_dr,'z')
+	elif(size_dr > size_lev):
+		return (size_dr, 'z') if size_dr > size_es else (size_es,'z')
+	elif(size_es == size_lev):
+		return (size_es, 'z') if good_es[0].distance < good_lev[0].distance else (size_lev,'l')
+	elif(size_dr == size_lev):
+		return (size_dr, 'z') if good_dr[0].distance < good_lev[0].distance else (size_lev, 'l')
 	else:
-		return (0, 'b')
+		return (size_lev, 'l')
 
 zebra = False
 level = False
-def defineTrafficSign(image):
+def defineZebra(image):
 	global zebra
 	global level
 	# pre-process the image by resizing it, converting it to
@@ -99,6 +136,7 @@ def defineTrafficSign(image):
 	# The is_cv2() and is_cv3() are simple functions that can be used to
 	# automatically determine the OpenCV version of the current environment
 	# cnts[0] or cnts[1] hold contours
+
 	cnts = cnts[0] if imutils.is_cv2() else cnts[1]
 	cnts = sorted(cnts, key=cv2.contourArea, reverse=True)
 	displayCnt = None
@@ -123,25 +161,21 @@ def defineTrafficSign(image):
 		output = four_point_transform(image, displayCnt.reshape(4, 2))
 		# draw a red square on the image
 		cv2.drawContours(image, [displayCnt], -1, (0, 0, 255), 5)
-		blue_mask = select_blue(output)
-		gray_mask = cv2.cvtColor(blue_mask, cv2.COLOR_BGR2GRAY)
-		equalized = cv2.equalizeHist(gray_mask)
-		nbr = cv2.countNonZero(equalized)
-		if (nbr > 300):
-			try:
-				print "alla"
-				size,of = SIFT(output)
-				print size
-				if(int(size) > 1):
-					if (of == 'z'):
-						zebra = True
-						cv2.waitKey(-1)
-					elif (of == 'l'):
-						level = True
-						cv2.waitKey(-1)
-			except:
-				pass
-			cv2.imshow('mask',output)
+		cv2.imshow('mask',output)
+		# blue_mask = select_blue(output)
+		# gray_mask = cv2.cvtColor(blue_mask, cv2.COLOR_BGR2GRAY)
+		# equalized = cv2.equalizeHist(gray_mask)
+		# nbr = cv2.countNonZero(equalized)
+		# if (nbr > 200):
+		# 	try:
+		# 		size, of = SIFT(output);
+		# 		if(int(size) > 1):
+		# 			if (of == 'z'):
+		# 				zebra = True;
+		# 			elif (of == 'l'):
+		# 				level = True
+		# 	except:
+		# 		pass
 	# extract_triangle(output)
 
 	# threshold the warped image, then apply a series of morphological
@@ -170,7 +204,12 @@ def find(video):
 		if grabbed == False:
 			break
 		cv2.imshow('frame',frame)
-		defineTrafficSign(frame)
+		# grey = convert_gray_scale(frame)
+		# equ = cv2.equalizeHist(grey)
+		# blurred = apply_smoothing(equ)
+		# canned = detect_edges(blurred)
+		region = select_region(frame)
+		defineZebra(region)
 		key = cv2.waitKey(1) & 0xFF
 		if key == ord(u'\u0020'):
 			cv2.waitKey(-1)
@@ -182,17 +221,16 @@ def find(video):
 def bool2num(bool):
 	return 1 if bool else 0
 if __name__ == "__main__":
-	path = '/home/bobz/repos/OpenCV-programs/visionhack/zebra/data/'
-	# file = open('./test/results-valid', 'w')
+	path = '/home/bobz/repos/OpenCV-programs/visionhack/AI/Hack/trainset/'
+	file = open('./test/results-valid', 'w')
 	file_list = [f for f in listdir(path) if isfile(join(path, f)) and f.split('.')[-1] == 'avi']
 	print len(file_list)
 	for indx, file_name in enumerate(file_list):
-		# if(file_name == "akn.289.048.left.avi"):
 		find(path + file_name)
 		query_level = str(bool2num(level))
 		query_zebra = str(bool2num(zebra))
 		save = file_name +" "+query_level+query_zebra+"\n"
-		# file.write(save)
+		file.write(save)
 		print "-----------------------------" + str(indx) + " "+file_name
-	# file.close()
+	file.close()
 

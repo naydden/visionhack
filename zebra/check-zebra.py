@@ -1,4 +1,4 @@
-results = open('./test/results', 'r')
+results = open('./test/results-test-bump-zebra', 'r')
 
 
 # counters
@@ -22,22 +22,31 @@ for result in results:
 		if file_name in solution:
 			true_level = int(list(solution.split(" ")[1])[0])
 			true_zebra = int(list(solution.split(" ")[1])[1])
-			if(true_zebra - query_zebra == -1):
-				zebra_fp +=1
-			elif(true_zebra - query_zebra == 1):
-				zebra_fn +=1
-			if(true_level - query_level == -1):
-				level_fp +=1
-			elif(true_level - query_level == 1):
-				level_fn +=1
+
+			if (query_level == 1 and true_level == 1):
+				level_tp += 1
+			elif (query_level ==1 and true_level == 0):
+				print file_name
+				level_fp += 1
+			elif (query_level == 0 and true_level == 0):
+				level_tn += 1
+			elif (query_level == 0 and true_level == 1):
+				level_fn += 1
+
+			if (query_zebra == 1 and true_zebra == 1):
+				zebra_tp += 1
+			elif (query_zebra ==1 and true_zebra == 0):
+				zebra_fp += 1
+			elif (query_zebra == 0 and true_zebra == 0):
+				zebra_tn += 1
+			elif (query_zebra == 0 and true_zebra == 1):
+				zebra_fn += 1
+
 	solutions.close()
 
 TOTAL_ZEBRA = 53
 TOTAL_LEVEL = 40
-zebra_tp = TOTAL_ZEBRA - zebra_fn
-zebra_tn = videos - (zebra_tn+zebra_fn+zebra_fp)
-level_tp = TOTAL_LEVEL - level_fn
-level_tn = videos - (level_tn+level_fn+level_fp)
+
 total_zebra = (-1000*zebra_fp+100*zebra_tp)/TOTAL_ZEBRA
 total_level = (-1000*level_fp+100*level_tp)/TOTAL_LEVEL
 
